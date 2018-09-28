@@ -32,32 +32,48 @@ end
  
 if $0 == __FILE__
    rpc = BitcoinRPC.new
+   ##Generating 3 addresses
    Addr1= rpc.getnewaddress
-   p "private key of address:"
-   Addr1_privk=rpc.dumpprivkey(Addr1)
-   p Addr1
+   Pub1 = rpc.validateaddress(Addr1)
+   Addr2= rpc.getnewaddress
+   Pub2 = rpc.validateaddress(Addr2)
+   Addr3= rpc.getnewaddress
+   Pub3 = rpc.validateaddress(Addr3)
+   
+   ##Creation of Multisig
+   multisig = rpc.createmultisig(2, [Addr1, Addr2, Addr3])
+   msigaddr = multisig['address']
+   msigscr = multisig['redeemScript']
 
-   rpc.validateaddress(Addr1)
-   p "Balance:" 
-   p rpc.getbalance
 
-   Txid= rpc.sendtoaddress(Addr1,10.00)
-   p "New Block Hash:"
-   p rpc.generate 1
+   Utxo_id = rpc.sendtoaddress(msigaddr,5.00)
+   rpc.generate 1
+   rpc.getrawtransaction(Utxo_id)
+   #p Utxo_id
 
-   list=rpc.listunspent
-   max=list[0]
-   UTXO_ID=''
-   for i in list     #Finding transaction with maximum confirmations
-   	if max['confirmations']<i['confirmations']
-		max=i
-        end
+
+   list = rpc.listunspent
+   for i in list
+	if(i['txid'] == Utxo_id)
+		Tran =i
+		break
+	end
    end
 
-   $UTXO_ID=max['txid']
-   arr=['txid':$UTXO_ID,'vout':0]
-   arr.to_json     #Converting ruby array to json
+   Addr4 = rpc.getnewaddress()
+   
+   tx_part1 = [Hash["txid",Utxo_id,"vout",Tran['vout']]]
+   tx_part2 = Hash[Addr4,2]
+   raw_tx = rpc.createrawtransaction(tx_part1,tx_part2)
 
-   Addr={Addr1:10}
-   p rpc.createrawtransaction(arr,Addr)  #Creating a raw transaction
+   decoded_raw_tx =  rpc.decoderawtransaction(raw_tx)
+
+   script=decoded_raw_tx['vout']['scriptPubKey']['hex']
+
+   Addr1_privk=rpc.dumpprivkey(Addr1)
+   Addr2_privk=rpc.dumpprivkey(Addr2)
+
+   p rpc.signrawtransaction(raw_tx,[Hash["txid",Utxo_id,"vout",Tran['vout'], "scriptPubKey" ,script, "redeemScript", Tran['redeemScript'] ]] , [Addr1_privk , Addr2_privk] )
+   
 end
+
