@@ -48,32 +48,31 @@ if $0 == __FILE__
 
    Utxo_id = rpc.sendtoaddress(msigaddr,5.00)
    rpc.generate 1
-   rpc.getrawtransaction(Utxo_id)
+   #raw_tx_json = rpc.getrawtransaction(Utxo_id,1)
    #p Utxo_id
 
-
-   list = rpc.listunspent
-   for i in list
-	if(i['txid'] == Utxo_id)
-		Tran =i
-		break
-	end
-   end
+   raw_tx_json = rpc.getrawtransaction(Utxo_id , 1)
+   utxo_os = raw_tx_json['vout'][0]['scriptPubKey']['hex']
+   
 
    Addr4 = rpc.getnewaddress()
-   
-   tx_part1 = [Hash["txid",Utxo_id,"vout",Tran['vout']]]
+
+   tx_part1 = [Hash["txid",Utxo_id,"vout", 0]]
    tx_part2 = Hash[Addr4,2]
-   raw_tx = rpc.createrawtransaction(tx_part1,tx_part2)
-
-   decoded_raw_tx =  rpc.decoderawtransaction(raw_tx)
-
-   script=decoded_raw_tx['vout']['scriptPubKey']['hex']
+   raw_tx = rpc.createrawtransaction(tx_part1,tx_part2 , 225)
 
    Addr1_privk=rpc.dumpprivkey(Addr1)
    Addr2_privk=rpc.dumpprivkey(Addr2)
 
-   p rpc.signrawtransaction(raw_tx,[Hash["txid",Utxo_id,"vout",Tran['vout'], "scriptPubKey" ,script, "redeemScript", Tran['redeemScript'] ]] , [Addr1_privk , Addr2_privk] )
+   signed_raw_tx_json = rpc.signrawtransaction(raw_tx,[Hash["txid",Utxo_id,"vout",0, "scriptPubKey" ,utxo_os, "redeemScript", msigscr ]] , [ Addr1_privk, Addr2_privk] )
+
+   signed_raw_tx = signed_raw_tx_json['hex']
    
+
+   #p rpc.sendrawtransaction(signed_raw_tx ,true ) ###gives error when block count is less than locktime
+   rpc.generate 3
+   p rpc.sendrawtransaction(signed_raw_tx ,true ) ####works fine
+   p rpc.getblockcount
+
 end
 
